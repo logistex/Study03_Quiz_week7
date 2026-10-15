@@ -202,6 +202,11 @@ function loadLeaderboard() {
   }
 }
 
+function cleanTable(table) {
+  if (!Array.isArray(table)) return [];
+  return table.filter(e => e !== null && typeof e === "object" && typeof e.score === "number" && typeof e.date === "string");
+}
+
 function insertScore(list, entry) {
   const index = list.filter(item => item.score >= entry.score).length;
   const next = [...list.slice(0, index), entry, ...list.slice(index)].slice(0, 10);
@@ -211,7 +216,7 @@ function insertScore(list, entry) {
 function recordScore(mode, category, score, date = todayString()) {
   const board = loadLeaderboard();
   const key = `${mode}|${category}`;
-  const result = insertScore(Array.isArray(board[key]) ? board[key] : [], { date, score });
+  const result = insertScore(cleanTable(board[key]), { date, score });
   board[key] = result.list;
   try {
     localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
@@ -230,8 +235,8 @@ function renderLeaderboard() {
       const title = document.createElement("h3");
       title.textContent = `${MODES[mode].name} ${category}`;
       container.appendChild(title);
-      const entries = board[`${mode}|${category}`];
-      if (!Array.isArray(entries) || entries.length === 0) {
+      const entries = cleanTable(board[`${mode}|${category}`]);
+      if (entries.length === 0) {
         const empty = document.createElement("p");
         empty.className = "note";
         empty.textContent = "기록 없음";
@@ -337,6 +342,11 @@ function runSelfTests() {
     const full = Array.from({ length: 10 }, () => ({ date: "2026-10-09", score: 9 }));
     const r = insertScore(full, { date: "2026-10-09", score: 3 });
     return r.rank === null && r.list.length === 10;
+  });
+  check("순위표: 표가 배열이 아니거나 깨진 기록이 있으면 버림", () => {
+    const list = cleanTable([null, 5, { date: "2026-10-01" }, { date: "2026-10-02", score: "9" }, { date: "2026-10-03", score: 4 }]);
+    const r = insertScore(list, { date: "2026-10-09", score: 5 });
+    return cleanTable("x").length === 0 && list.length === 1 && r.rank === 1 && r.list.length === 2;
   });
   // 태스크마다 여기에 check(...)를 더함
   const failed = results.filter(ok => !ok).length;
